@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>duck race timer</title>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <h1>duck race timer</h1>
+      <p>set a duration, share the code, watch the ducks.</p>
+      <form id="new-timer">
+        <p>
+          <input id="h" type="number" min="0" max="99" value="0"> h
+          <input id="m" type="number" min="0" max="99" value="5"> m
+          <input id="s" type="number" min="0" max="99" value="0"> s
+        </p>
+        <p>
+          <textarea id="names" rows="6" cols="24"
+            placeholder="racer names, one per line (2-12)&#10;leave blank for 6 plain ducks"></textarea>
+        </p>
+        <p>
+          speed distribution:
+          <label><input type="radio" name="dist" value="normal" checked> normal</label>
+          <label><input type="radio" name="dist" value="uniform"> uniform</label>
+        </p>
+        <button>make timer</button>
+      </form>
+      <p id="error"></p>
+    </div>
+    <script>
+      document.getElementById("new-timer").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fields = Object.fromEntries(
+          ["h", "m", "s"].map((k) => [k, document.getElementById(k).value || "0"]));
+        fields.names = document.getElementById("names").value
+          .split("\n").map((n) => n.trim()).filter(Boolean);
+        fields.dist = document.querySelector('input[name="dist"]:checked').value;
+        const resp = await fetch("/api/new", {method: "POST", body: JSON.stringify(fields)});
+        const data = await resp.json();
+        if (resp.ok) location.href = `/t/${data.code}`;
+        else document.getElementById("error").textContent = data.error;
+      });
+    </script>
+  </body>
+</html>

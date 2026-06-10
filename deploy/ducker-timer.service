@@ -1,0 +1,12 @@
+[Unit]
+Description=duck race timer
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/ducker-timer/server.py
+WorkingDirectory=/opt/ducker-timer
+DynamicUser=yes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

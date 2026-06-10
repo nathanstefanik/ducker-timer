@@ -1,0 +1,69 @@
+html, body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+}
+
+.wrapper {
+    width: min(640px, 90vw);
+    display: flex;
+    flex-direction: column;
+}
+
+.code {
+    font-family: monospace;
+    font-size: 20px;
+    margin-bottom: 0px;
+}
+
+.clock {
+    font-family: monospace;
+    font-size: 64px;
+    margin: 8px 0px 8px 0px;
+}
+
+.banner {
+    font-family: monospace;
+    font-size: 24px;
+    min-height: 28px;
+    margin: 0px 0px 16px 0px;
+}
+
+#pond {
+    border-right: 2px solid;
+}
+.lane {
+    position: relative;
+    height: 50px;
+    border-bottom: 1px dashed;
+}
+.duck {
+    position: absolute;
+    left: calc(var(--pos, 0) * (100% - 56px));
+    bottom: 0px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.duck svg {
+    display: block;
+}
+.duck-name {
+    font-family: monospace;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.controls {
+    margin-top: 24px;
+}
+.controls a {
+    text-decoration: none;
+    margin-right: 12px;
+}
+.controls a:hover {
+    text-decoration: underline;
+}
