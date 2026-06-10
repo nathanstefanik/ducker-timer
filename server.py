@@ -130,4 +130,5 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, state(code))
 
 
-ThreadingHTTPServer(("127.0.0.1", 8000), Handler).serve_forever()
+# 0.0.0.0 because the reverse proxy (Caddy on another host) reaches this over the LAN
+ThreadingHTTPServer(("0.0.0.0", 8000), Handler).serve_forever()
