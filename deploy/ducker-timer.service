@@ -6,6 +6,9 @@ After=network.target
 ExecStart=/usr/bin/python3 /opt/ducker-timer/server.py
 WorkingDirectory=/opt/ducker-timer
 DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
 Restart=on-failure
 
 [Install]

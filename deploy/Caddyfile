@@ -1,6 +1,5 @@
-# append to the existing Caddyfile on the Caddy host (192.168.1.220);
-# replace the IP with the timer LXC's LAN address
+# append to the existing /etc/caddy/Caddyfile on the caddy host (192.168.1.220)
 timer.nathanstefanik.xyz {
     bind 192.168.1.220
-    reverse_proxy 192.168.1.XXX:8000
+    reverse_proxy 192.168.1.236:8000
 }
