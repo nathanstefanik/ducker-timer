@@ -60,21 +60,31 @@ function buildPond(names, lookSeed) {
   });
 }
 
-// positions are a pure function of (frac, seed), so a viewer joining mid-race
-// is instantly in sync. speeds are iid draws from the chosen distribution;
-// the fastest duck wins and finishes exactly at frac=1, the rest are min-max
-// scaled onto [0.55, 1]. the wobble vanishes at frac=0 and frac=1, and its
-// 0.35 amplitude keeps finish*frac + wobble < 1 before the end: nobody
-// crosses the line early.
-function raceState(frac, seed, n, dist) {
+// positions are a pure function of (frac, seed, names), so a viewer joining
+// mid-race is instantly in sync. speeds are iid draws from the chosen
+// distribution; the winning duck finishes exactly at frac=1, the rest are
+// min-max scaled onto [0.55, 1]. the wobble vanishes at frac=0 and frac=1,
+// and its 0.35 amplitude keeps finish*frac + wobble < 1 before the end:
+// nobody crosses the line early.
+//
+// the winner is a weighted raffle: each capital letter in a name is one
+// extra ticket (w = 1 + caps), then the max speed draw is swapped onto the
+// raffled duck. swapping is a permutation of iid draws, so the field's
+// dynamics are unchanged and P(win) is exactly w_i / sum(w).
+function raceState(frac, seed, names, dist) {
+  const n = names.length;
   const rand = mulberry32(seed);
   const draw = dist === "uniform"
     ? rand
     : () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+  const tickets = names.map((name) => 1 + (name.match(/[A-Z]/g) || []).length);
+  let ball = rand() * tickets.reduce((a, b) => a + b, 0);
+  const winner = tickets.findIndex((w) => (ball -= w) < 0);
   const raws = Array.from({ length: n }, draw);
-  const lo = Math.min(...raws);
   const hi = Math.max(...raws);
-  const winner = raws.indexOf(hi);
+  const fastest = raws.indexOf(hi);
+  [raws[winner], raws[fastest]] = [raws[fastest], raws[winner]];
+  const lo = Math.min(...raws);
   const positions = raws.map((r) => {
     const finish = 0.55 + 0.45 * (r - lo) / (hi - lo);
     const wobble = 0.35 * Math.sin(2 * Math.PI * ((2 + 4 * rand()) * frac + rand())) * frac * (1 - frac);
@@ -100,7 +110,7 @@ function render() {
       const elapsed = Math.min(Date.now() / 1000 + offset - state.started_at, state.duration_s);
       const frac = Math.max(0, elapsed) / state.duration_s;
       clock.textContent = fmt(Math.ceil(state.duration_s - elapsed));
-      const { positions, winner } = raceState(frac, state.seed, ducks.length, state.dist);
+      const { positions, winner } = raceState(frac, state.seed, state.names, state.dist);
       positions.forEach((p, i) => ducks[i].style.setProperty("--pos", p));
       banner.textContent = frac >= 1 ? `${state.names[winner]} wins 1st!` : "";
     }
@@ -110,6 +120,12 @@ function render() {
 
 function adopt(data) {
   if (!ducks.length) buildPond(data.names, data.look_seed);
+  if (data.title) {
+    const title = document.getElementById("title");
+    title.textContent = data.title;
+    title.hidden = false;
+    document.title = `${data.title} — duck race timer`;
+  }
   state = data;
   offset = data.server_now - Date.now() / 1000;
 }

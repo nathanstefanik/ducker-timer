@@ -13,6 +13,9 @@
       <p>set a duration, share the code, watch the ducks.</p>
       <form id="new-timer">
         <p>
+          <input id="title" maxlength="40" size="24" placeholder="race name (optional)">
+        </p>
+        <p>
           <input id="h" type="number" min="0" max="99" value="0"> h
           <input id="m" type="number" min="0" max="99" value="5"> m
           <input id="s" type="number" min="0" max="99" value="0"> s
@@ -35,6 +38,7 @@
         e.preventDefault();
         const fields = Object.fromEntries(
           ["h", "m", "s"].map((k) => [k, document.getElementById(k).value || "0"]));
+        fields.title = document.getElementById("title").value.trim();
         fields.names = document.getElementById("names").value
           .split("\n").map((n) => n.trim()).filter(Boolean);
         fields.dist = document.querySelector('input[name="dist"]:checked').value;

@@ -29,6 +29,7 @@ def collect_garbage():
 def state(code):
     t = timers[code]
     return {
+        "title": t["title"],
         "duration_s": t["duration_s"],
         "started_at": t["started_at"],
         "seed": t["seed"],
@@ -93,6 +94,7 @@ class Handler(BaseHTTPRequestHandler):
         duration_s = h * 3600 + m * 60 + s
         if not all(0 <= v <= 99 for v in (h, m, s)) or duration_s < 1:
             return self.reply(400, {"error": "each field 0-99, total at least 1 second"})
+        title = str(fields.get("title") or "").strip()[:40]
         names = [str(n).strip()[:20] for n in fields.get("names") or []]
         names = [n for n in names if n] or [f"duck {i + 1}" for i in range(6)]
         if not 2 <= len(names) <= 12:
@@ -107,6 +109,7 @@ class Handler(BaseHTTPRequestHandler):
         # shuffle with system entropy: lane (and hence duck look) assignment is random
         random.SystemRandom().shuffle(names)
         timers[code] = {
+            "title": title,
             "duration_s": duration_s,
             "started_at": None,
             "seed": None,
