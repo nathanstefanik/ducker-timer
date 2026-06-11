@@ -76,6 +76,8 @@ function raceState(frac, seed, names, dist) {
   const rand = mulberry32(seed);
   const draw = dist === "uniform"
     ? rand
+    : dist === "exponential"
+    ? () => -Math.log(1 - rand())
     : () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
   const tickets = names.map((name) => 1 + (name.match(/[A-Z]/g) || []).length);
   let ball = rand() * tickets.reduce((a, b) => a + b, 0);

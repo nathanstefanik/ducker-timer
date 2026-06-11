@@ -100,8 +100,8 @@ class Handler(BaseHTTPRequestHandler):
         if not 2 <= len(names) <= 12:
             return self.reply(400, {"error": "2 to 12 racer names"})
         dist = fields.get("dist", "normal")
-        if dist not in ("normal", "uniform"):
-            return self.reply(400, {"error": "dist must be normal or uniform"})
+        if dist not in ("normal", "uniform", "exponential"):
+            return self.reply(400, {"error": "dist must be normal, uniform, or exponential"})
         collect_garbage()
         code = new_code()
         while code in timers:
