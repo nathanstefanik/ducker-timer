@@ -61,32 +61,32 @@ function buildPond(names, lookSeed) {
 }
 
 // positions are a pure function of (frac, seed, names), so a viewer joining
-// mid-race is instantly in sync. speeds are iid draws from the chosen
+// mid-race is instantly in sync. speeds are draws from the chosen
 // distribution; the winning duck finishes exactly at frac=1, the rest are
 // min-max scaled onto [0.55, 1]. the wobble vanishes at frac=0 and frac=1,
 // and its 0.35 amplitude keeps finish*frac + wobble < 1 before the end:
 // nobody crosses the line early.
 //
-// the winner is a weighted raffle: each capital letter in a name is one
-// extra ticket (w = 1 + caps), then the max speed draw is swapped onto the
-// raffled duck. swapping is a permutation of iid draws, so the field's
-// dynamics are unchanged and P(win) is exactly w_i / sum(w).
+// capital-letter edge (normal only): each A–Z shifts loc by MU_PER_CAP,
+// capped at 10. MU_MAX = sqrt(2)*Φ⁻¹(0.75) ≈ 0.95387, so 10 caps vs a
+// lowercase duck wins pairwise with probability 0.75. uniform/exponential
+// draws stay iid; capitals do nothing there.
+const MU_MAX = 0.95387;
+const MU_PER_CAP = MU_MAX / 10;
+
 function raceState(frac, seed, names, dist) {
   const n = names.length;
   const rand = mulberry32(seed);
-  const draw = dist === "uniform"
-    ? rand
-    : dist === "exponential"
-    ? () => -Math.log(1 - rand())
-    : () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
-  const tickets = names.map((name) => 1 + (name.match(/[A-Z]/g) || []).length);
-  let ball = rand() * tickets.reduce((a, b) => a + b, 0);
-  const winner = tickets.findIndex((w) => (ball -= w) < 0);
-  const raws = Array.from({ length: n }, draw);
+  const raws = names.map((name) => {
+    if (dist === "uniform") return rand();
+    if (dist === "exponential") return -Math.log(1 - rand());
+    const caps = Math.min((name.match(/[A-Z]/g) || []).length, 10);
+    const z = Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+    return z + caps * MU_PER_CAP;
+  });
   const hi = Math.max(...raws);
-  const fastest = raws.indexOf(hi);
-  [raws[winner], raws[fastest]] = [raws[fastest], raws[winner]];
   const lo = Math.min(...raws);
+  const winner = raws.indexOf(hi);
   const positions = raws.map((r) => {
     const finish = 0.55 + 0.45 * (r - lo) / (hi - lo);
     const wobble = 0.35 * Math.sin(2 * Math.PI * ((2 + 4 * rand()) * frac + rand())) * frac * (1 - frac);
