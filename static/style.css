@@ -1,10 +1,20 @@
-html, body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+html {
     margin: 0px;
     padding: 0px;
+}
+
+body {
+    margin: 0px;
+    padding: 0px;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+body.timer-page {
+    align-items: flex-start;
+    padding: 12px 0px 24px 0px;
 }
 
 .wrapper {
@@ -41,10 +51,20 @@ html, body {
 #pond {
     border-right: 2px solid;
 }
+
+body.timer-page #pond {
+    max-height: calc(100vh - 240px);
+    overflow-y: auto;
+}
+
 .lane {
     position: relative;
     height: 50px;
     border-bottom: 1px dashed;
+}
+
+body.timer-page .lane {
+    height: 42px;
 }
 .duck {
     position: absolute;
