@@ -96,10 +96,15 @@ function raceState(frac, seed, names, dist) {
 }
 
 function fmt(totalS) {
-  const h = Math.floor(totalS / 3600);
-  const m = Math.floor((totalS % 3600) / 60);
-  const s = Math.floor(totalS % 60);
-  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
+  const t = Math.max(0, totalS);
+  const d = Math.floor(t / 86400);
+  const h = Math.floor((t % 86400) / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = Math.floor(t % 60);
+  const pad = (v) => String(v).padStart(2, "0");
+  if (d) return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+  if (h) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
 }
 
 function render() {
