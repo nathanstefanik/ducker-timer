@@ -58,13 +58,31 @@ body.timer-page #pond {
 }
 
 .lane {
-    position: relative;
+    display: flex;
     height: 50px;
     border-bottom: 1px dashed;
 }
 
 body.timer-page .lane {
     height: 54px;
+}
+
+.rank {
+    flex: 0 0 44px;
+    font-family: monospace;
+    font-size: 14px;
+    align-self: center;
+}
+
+.lane.leader .rank,
+.lane.leader .duck-name {
+    font-weight: bold;
+}
+
+.water {
+    position: relative;
+    flex: 1;
+    min-width: 0px;
 }
 
 body.timer-page .duck {

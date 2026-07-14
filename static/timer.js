@@ -47,6 +47,10 @@ function buildPond(names, lookSeed) {
   ducks = names.map((name) => {
     const lane = document.createElement("div");
     lane.className = "lane";
+    const rank = document.createElement("span");
+    rank.className = "rank";
+    const water = document.createElement("div");
+    water.className = "water";
     const duck = document.createElement("span");
     duck.className = "duck";
     duck.innerHTML = duckSvg(rand);
@@ -54,18 +58,20 @@ function buildPond(names, lookSeed) {
     label.className = "duck-name";
     label.textContent = name;  // textContent, not innerHTML: names are user input
     duck.prepend(label);
-    lane.appendChild(duck);
+    water.appendChild(duck);
+    lane.append(rank, water);
     pond.appendChild(lane);
-    return duck;
+    return { duck, rank, lane };
   });
 }
 
 // positions are a pure function of (frac, seed, names), so a viewer joining
 // mid-race is instantly in sync. speeds are draws from the chosen
 // distribution; the winning duck finishes exactly at frac=1, the rest are
-// min-max scaled onto [0.55, 1]. the wobble vanishes at frac=0 and frac=1,
-// and its 0.35 amplitude keeps finish*frac + wobble < 1 before the end:
-// nobody crosses the line early.
+// min-max scaled onto [0.35, 1] — wide enough that mid-race gaps read at a
+// glance. the wobble vanishes at frac=0 and frac=1, and its 0.12 amplitude
+// is small next to the pace spread, so on-screen order mostly tracks true
+// order and finish*frac + wobble < 1 before the end: nobody crosses early.
 //
 // capital-letter edge (normal only): each A–Z shifts loc by MU_PER_CAP,
 // capped at 10. MU_MAX = sqrt(2)*Φ⁻¹(0.75) ≈ 0.95387, so 10 caps vs a
@@ -88,11 +94,18 @@ function raceState(frac, seed, names, dist) {
   const lo = Math.min(...raws);
   const winner = raws.indexOf(hi);
   const positions = raws.map((r) => {
-    const finish = 0.55 + 0.45 * (r - lo) / (hi - lo);
-    const wobble = 0.35 * Math.sin(2 * Math.PI * ((2 + 4 * rand()) * frac + rand())) * frac * (1 - frac);
+    const finish = 1 - 0.65 * (hi - r) / (hi - lo);  // winner hits exactly 1
+    const wobble = 0.12 * Math.sin(2 * Math.PI * ((2 + 4 * rand()) * frac + rand())) * frac * (1 - frac);
     return Math.max(0, Math.min(1, finish * frac + wobble));
   });
   return { positions, winner };
+}
+
+function ordinal(n) {
+  const suffix = n % 10 === 1 && n % 100 !== 11 ? "st"
+    : n % 10 === 2 && n % 100 !== 12 ? "nd"
+    : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th";
+  return `${n}${suffix}`;
 }
 
 function fmt(totalS) {
@@ -112,13 +125,24 @@ function render() {
     if (state.started_at === null) {
       clock.textContent = fmt(state.duration_s);
       banner.textContent = "";
-      ducks.forEach((d) => d.style.setProperty("--pos", 0));
+      ducks.forEach((d) => {
+        d.duck.style.setProperty("--pos", 0);
+        d.rank.textContent = "";
+        d.lane.classList.remove("leader");
+      });
     } else {
       const elapsed = Math.min(Date.now() / 1000 + offset - state.started_at, state.duration_s);
       const frac = Math.max(0, elapsed) / state.duration_s;
       clock.textContent = fmt(Math.ceil(state.duration_s - elapsed));
       const { positions, winner } = raceState(frac, state.seed, state.names, state.dist);
-      positions.forEach((p, i) => ducks[i].style.setProperty("--pos", p));
+      // ranks come from on-screen position, wobble and all: they flicker
+      // when ducks trade places, and reveal nothing the eye can't see.
+      const order = positions.map((p, i) => [p, i]).sort((a, b) => b[0] - a[0]);
+      order.forEach(([, i], place) => {
+        ducks[i].rank.textContent = ordinal(place + 1);
+        ducks[i].lane.classList.toggle("leader", place === 0);
+      });
+      positions.forEach((p, i) => ducks[i].duck.style.setProperty("--pos", p));
       banner.textContent = frac >= 1 ? `${state.names[winner]} wins 1st!` : "";
     }
   }
