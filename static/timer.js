@@ -74,10 +74,10 @@ function buildPond(names, lookSeed) {
 // order and finish*frac + wobble < 1 before the end: nobody crosses early.
 //
 // capital-letter edge (normal only): each A–Z shifts loc by MU_PER_CAP,
-// capped at 10. MU_MAX = sqrt(2)*Φ⁻¹(0.75) ≈ 0.95387, so 10 caps vs a
-// lowercase duck wins pairwise with probability 0.75. uniform/exponential
+// capped at 10. MU_MAX = sqrt(2)*Φ⁻¹(0.95) ≈ 2.32617, so 10 caps vs a
+// lowercase duck wins pairwise with probability 0.95. uniform/exponential
 // draws stay iid; capitals do nothing there.
-const MU_MAX = 0.95387;
+const MU_MAX = 2.32617;
 const MU_PER_CAP = MU_MAX / 10;
 
 function raceState(frac, seed, names, dist) {
