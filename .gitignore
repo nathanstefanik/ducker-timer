@@ -2,3 +2,4 @@ __pycache__/
 .DS_Store
 NEW_FEATURES.md
 deploy.sh
+recreate-algae-float.sh

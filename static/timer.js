@@ -143,7 +143,7 @@ function render() {
         ducks[i].lane.classList.toggle("leader", place === 0);
       });
       positions.forEach((p, i) => ducks[i].duck.style.setProperty("--pos", p));
-      banner.textContent = frac >= 1 ? `${state.names[winner]} wins 1st!` : "";
+      banner.textContent = frac >= 1 ? `${state.names[winner]} wins!` : "";
     }
   }
   requestAnimationFrame(render);
