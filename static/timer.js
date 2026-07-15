@@ -1,5 +1,4 @@
 const code = location.pathname.split("/").pop();
-const token = location.hash.slice(1) || null;
 
 let state = null;
 let offset = 0;  // server clock minus local clock, in seconds
@@ -10,11 +9,6 @@ const pond = document.getElementById("pond");
 const banner = document.getElementById("banner");
 document.getElementById("code").textContent = code;
 document.title = `${code} — duck race timer`;
-
-if (!token) {
-  document.getElementById("start").style.display = "none";
-  document.getElementById("reset").style.display = "none";
-}
 
 function mulberry32(seed) {
   return () => {
@@ -174,10 +168,7 @@ async function sync() {
 }
 
 async function act(action) {
-  const resp = await fetch(`/api/t/${code}/${action}`, {
-    method: "POST",
-    body: JSON.stringify({ token }),
-  });
+  const resp = await fetch(`/api/t/${code}/${action}`, { method: "POST" });
   if (resp.ok) adopt(await resp.json());
 }
 

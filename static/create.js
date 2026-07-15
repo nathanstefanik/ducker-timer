@@ -6,8 +6,12 @@ document.getElementById("new-timer").addEventListener("submit", async (e) => {
   fields.names = document.getElementById("names").value
     .split("\n").map((n) => n.trim()).filter(Boolean);
   fields.dist = document.querySelector('input[name="dist"]:checked').value;
-  const resp = await fetch("/api/new", {method: "POST", body: JSON.stringify(fields)});
+  const resp = await fetch("/api/new", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(fields),
+  });
   const data = await resp.json();
-  if (resp.ok) location.href = `/t/${data.code}#${data.token}`;
+  if (resp.ok) location.href = `/t/${data.code}`;
   else document.getElementById("error").textContent = data.error;
 });

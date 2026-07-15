@@ -99,23 +99,26 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_file("timer.html", "text/html")
             else:
                 self.reply(404, b"no such timer\n", "text/plain")
-        elif path == "/static/style.css":
-            self.reply_file("style.css", "text/css")
-        elif path == "/static/timer.js":
-            self.reply_file("timer.js", "text/javascript")
-        elif path == "/static/create.js":
-            self.reply_file("create.js", "text/javascript")
+        elif path.startswith("/static/"):
+            name = path[len("/static/"):]
+            if not name or "/" in name or name.startswith(".") or not (STATIC / name).is_file():
+                self.reply(404, b"not found\n", "text/plain")
+            else:
+                ctype = {".css": "text/css", ".js": "text/javascript"}.get(
+                    Path(name).suffix, "application/octet-stream")
+                self.reply_file(name, ctype)
         else:
             self.reply(404, b"not found\n", "text/plain")
 
     def do_POST(self):
+        path = self.path.split("?")[0]
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
-        if self.path == "/api/new":
+        if path == "/api/new":
             self.create_timer(body)
-        elif self.path.startswith("/api/t/") and self.path.endswith("/start"):
-            self.act(self.path[len("/api/t/"):-len("/start")], "start", body)
-        elif self.path.startswith("/api/t/") and self.path.endswith("/reset"):
-            self.act(self.path[len("/api/t/"):-len("/reset")], "reset", body)
+        elif path.startswith("/api/t/") and path.endswith("/start"):
+            self.act(path[len("/api/t/"):-len("/start")], "start")
+        elif path.startswith("/api/t/") and path.endswith("/reset"):
+            self.act(path[len("/api/t/"):-len("/reset")], "reset")
         else:
             self.reply(404, {"error": "not found"})
 
@@ -143,7 +146,6 @@ class Handler(BaseHTTPRequestHandler):
         while code in timers:
             code = new_code()
         random.SystemRandom().shuffle(names)
-        token = secrets.token_urlsafe(16)
         timers[code] = {
             "title": title,
             "duration_s": duration_s,
@@ -153,22 +155,13 @@ class Handler(BaseHTTPRequestHandler):
             "dist": dist,
             "look_seed": secrets.randbits(32),
             "created_at": time.time(),
-            "token": token,
         }
-        self.reply(200, {"code": code, "token": token})
+        self.reply(200, {"code": code})
 
-    def act(self, code, action, body=b""):
+    def act(self, code, action):
         if code not in timers:
             return self.reply(404, {"error": "no such timer"})
         t = timers[code]
-        token = None
-        if body:
-            try:
-                token = json.loads(body).get("token")
-            except (ValueError, TypeError):
-                pass
-        if token != t["token"]:
-            return self.reply(403, {"error": "not authorized"})
         if action == "start" and t["started_at"] is None:
             t["started_at"] = time.time()
             t["seed"] = secrets.randbits(32)
