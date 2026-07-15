@@ -1,7 +1,9 @@
 import json
 import random
 import secrets
+import threading
 import time
+from collections import defaultdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -14,6 +16,8 @@ MAX_DURATION_S = 99 * 3600 + 99 * 60 + 99
 # in-memory by design: a restart drops live timers, an acceptable trade-off
 # for a toy shared among friends for at most a day
 timers = {}
+rate_limits = defaultdict(list)
+sse_conds = {}
 
 
 def collect_garbage():
@@ -24,6 +28,7 @@ def collect_garbage():
     ]
     for code in dead:
         del timers[code]
+        sse_conds.pop(code, None)
 
 
 def state(code):
@@ -40,22 +45,49 @@ def state(code):
     }
 
 
+def notify_sse(code):
+    if code in sse_conds:
+        cond, _ = sse_conds[code]
+        with cond:
+            sse_conds[code][1] += 1
+            cond.notify_all()
+
+
+def check_rate_limit(ip, max_reqs=10, window=60):
+    now = time.time()
+    hits = rate_limits[ip] = [t for t in rate_limits[ip] if now - t < window]
+    if len(hits) >= max_reqs:
+        return False
+    hits.append(now)
+    return True
+
+
+CSP = ("default-src 'self'; style-src 'self'; script-src 'self'; "
+       "img-src 'self' data:; connect-src 'self'")
+
+
 class Handler(BaseHTTPRequestHandler):
     def reply(self, status, body, content_type="application/json"):
         data = body if isinstance(body, bytes) else json.dumps(body).encode()
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Security-Policy", CSP)
         self.end_headers()
         self.wfile.write(data)
 
     def reply_file(self, name, content_type):
         self.reply(200, (STATIC / name).read_bytes(), content_type)
 
+    def client_ip(self):
+        return self.headers.get("X-Forwarded-For", self.client_address[0]).split(",")[0].strip()
+
     def do_GET(self):
         path = self.path.split("?")[0]
         if path == "/":
             self.reply_file("index.html", "text/html")
+        elif path.startswith("/api/t/") and path.endswith("/stream"):
+            self.stream_sse(path[len("/api/t/"):-len("/stream")])
         elif path.startswith("/api/t/"):
             code = path[len("/api/t/"):]
             if code in timers:
@@ -71,6 +103,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_file("style.css", "text/css")
         elif path == "/static/timer.js":
             self.reply_file("timer.js", "text/javascript")
+        elif path == "/static/create.js":
+            self.reply_file("create.js", "text/javascript")
         else:
             self.reply(404, b"not found\n", "text/plain")
 
@@ -79,13 +113,15 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/new":
             self.create_timer(body)
         elif self.path.startswith("/api/t/") and self.path.endswith("/start"):
-            self.act(self.path[len("/api/t/"):-len("/start")], "start")
+            self.act(self.path[len("/api/t/"):-len("/start")], "start", body)
         elif self.path.startswith("/api/t/") and self.path.endswith("/reset"):
-            self.act(self.path[len("/api/t/"):-len("/reset")], "reset")
+            self.act(self.path[len("/api/t/"):-len("/reset")], "reset", body)
         else:
             self.reply(404, {"error": "not found"})
 
     def create_timer(self, body):
+        if not check_rate_limit(self.client_ip()):
+            return self.reply(429, {"error": "too many timers, try again later"})
         try:
             fields = json.loads(body)
             h, m, s = (int(fields[k]) for k in ("h", "m", "s"))
@@ -106,8 +142,8 @@ class Handler(BaseHTTPRequestHandler):
         code = new_code()
         while code in timers:
             code = new_code()
-        # shuffle with system entropy: lane (and hence duck look) assignment is random
         random.SystemRandom().shuffle(names)
+        token = secrets.token_urlsafe(16)
         timers[code] = {
             "title": title,
             "duration_s": duration_s,
@@ -117,21 +153,50 @@ class Handler(BaseHTTPRequestHandler):
             "dist": dist,
             "look_seed": secrets.randbits(32),
             "created_at": time.time(),
+            "token": token,
         }
-        self.reply(200, {"code": code})
+        self.reply(200, {"code": code, "token": token})
 
-    def act(self, code, action):
+    def act(self, code, action, body=b""):
         if code not in timers:
             return self.reply(404, {"error": "no such timer"})
         t = timers[code]
+        token = None
+        if body:
+            try:
+                token = json.loads(body).get("token")
+            except (ValueError, TypeError):
+                pass
+        if token != t["token"]:
+            return self.reply(403, {"error": "not authorized"})
         if action == "start" and t["started_at"] is None:
             t["started_at"] = time.time()
             t["seed"] = secrets.randbits(32)
         elif action == "reset":
             t["started_at"] = None
             t["seed"] = None
+        notify_sse(code)
         self.reply(200, state(code))
 
+    def stream_sse(self, code):
+        if code not in timers:
+            return self.reply(404, {"error": "no such timer"})
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+        if code not in sse_conds:
+            sse_conds[code] = [threading.Condition(), 0]
+        cond = sse_conds[code][0]
+        while code in timers:
+            try:
+                self.wfile.write(f"data: {json.dumps(state(code))}\n\n".encode())
+                self.wfile.flush()
+            except OSError:
+                return
+            with cond:
+                cond.wait(timeout=1)
 
-# 0.0.0.0 because caddy reaches this from another host over the LAN
+
 ThreadingHTTPServer(("0.0.0.0", 8000), Handler).serve_forever()

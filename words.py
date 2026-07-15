@@ -15,4 +15,4 @@ WORDS = [
 
 
 def new_code():
-    return f"{secrets.choice(WORDS)}-{secrets.choice(WORDS)}"
+    return f"{secrets.choice(WORDS)}-{secrets.choice(WORDS)}-{secrets.choice(WORDS)}"
